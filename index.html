@@ -157,7 +157,7 @@
                 </div>
                 
                 <!-- 豆瓣热门开关 -->
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between mb-3 pb-3 border-b border-[#222]">
                     <div>
                         <label class="text-sm font-medium text-gray-400">豆瓣热门推荐</label>
                         <p class="text-xs text-gray-500 mt-1">首页显示豆瓣热门影视内容</p>
@@ -166,6 +166,32 @@
                         <input type="checkbox" id="doubanToggle" class="opacity-0 absolute w-full h-full cursor-pointer z-10">
                         <div class="toggle-bg bg-[#333] w-12 h-6 rounded-full transition-colors duration-300 ease-in-out"></div>
                         <div class="toggle-dot absolute w-5 h-5 bg-white rounded-full top-0.5 left-0.5 transition-transform duration-300 ease-in-out"></div>
+                    </div>
+                </div>
+                
+                <!-- 繁簡轉換開關 -->
+                <div class="flex items-center justify-between mb-3 pb-3 border-b border-[#222]">
+                    <div>
+                        <label class="text-sm font-medium text-gray-400">繁簡搜尋轉換</label>
+                        <p class="text-xs text-gray-500 mt-1">自動將繁體搜尋轉換為簡體</p>
+                    </div>
+                    <div class="relative inline-block w-12 align-middle select-none">
+                        <input type="checkbox" id="chineseConvertToggle" class="opacity-0 absolute w-full h-full cursor-pointer z-10" checked>
+                        <div class="toggle-bg bg-[#333] w-12 h-6 rounded-full transition-colors duration-300 ease-in-out"></div>
+                        <div class="toggle-dot absolute w-5 h-5 bg-white rounded-full top-0.5 left-0.5 transition-transform duration-300 ease-in-out"></div>
+                    </div>
+                </div>
+                
+                <!-- 轉換模式選擇 -->
+                <div class="mb-3 pb-3 border-b border-[#222]" id="conversionModeSection">
+                    <label class="text-sm font-medium text-gray-400 block mb-2">轉換模式</label>
+                    <select id="conversionModeSelect" class="w-full bg-[#111] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition-colors">
+                        <option value="tw2cn">台灣繁體 → 大陸簡體（推薦）</option>
+                        <option value="t2s">純繁體 → 簡體（僅字符）</option>
+                    </select>
+                    <div class="text-xs text-gray-500 mt-2 space-y-1">
+                        <p>• <span class="text-purple-400">台繁→陸簡</span>：轉換字符＋詞彙（如：影片→视频、軟體→软件）</p>
+                        <p>• <span class="text-blue-400">純繁→簡</span>：只轉換字符（如：電影→电影、影片→影片）</p>
                     </div>
                 </div>
             </div>
@@ -410,6 +436,8 @@
         // 保存原始 js‑sha256 实现，避免被 password.js 覆盖
         window._jsSha256 = window.sha256;
     </script>
+    <!-- OpenCC 繁簡轉換庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/opencc-js@1.0.5/dist/umd/full.js"></script>
     <script src="js/config.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/api.js"></script>

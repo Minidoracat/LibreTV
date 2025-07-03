@@ -11,8 +11,141 @@ let currentVideoTitle = '';
 // 全局变量用于倒序状态
 let episodesReversed = false;
 
+// ===== 繁簡轉換相關功能 =====
+// 轉換器實例
+let chineseConverters = {
+    t2s: null,    // 純繁體轉簡體（t → cn）
+    tw2cn: null   // 台灣繁體轉大陸簡體（包含用語轉換）
+};
+
+// 初始化繁簡轉換器
+function initChineseConverters() {
+    if (!window.OpenCC) {
+        console.warn('OpenCC 庫未載入，繁簡轉換功能將無法使用');
+        return false;
+    }
+    
+    try {
+        console.log('開始初始化繁簡轉換器...');
+        
+        // 純字符轉換（繁體轉簡體）
+        chineseConverters.t2s = OpenCC.Converter({ from: 't', to: 'cn' });
+        console.log('✓ 純繁轉簡轉換器初始化成功（t → cn）');
+        
+        // 台灣用語轉大陸用語（包含字符和詞彙轉換）
+        chineseConverters.tw2cn = OpenCC.Converter({ from: 'tw', to: 'cn' });
+        console.log('✓ 台繁轉陸簡轉換器初始化成功（tw → cn）');
+        
+        console.log('✅ 繁簡轉換器初始化成功！');
+        
+        // 測試兩種轉換模式的差異
+        const testTexts = ['電影', '影片', '軟體', '程式', '記憶體'];
+        console.log('測試轉換差異：');
+        testTexts.forEach(text => {
+            try {
+                const t2sResult = chineseConverters.t2s(text);
+                const tw2cnResult = chineseConverters.tw2cn(text);
+                if (t2sResult !== tw2cnResult) {
+                    console.log(`  ${text} → [純字符] ${t2sResult} / [含用語] ${tw2cnResult} ⚡差異`);
+                } else {
+                    console.log(`  ${text} → ${t2sResult}`);
+                }
+            } catch (e) {
+                console.error(`  ${text} → 轉換失敗`, e);
+            }
+        });
+        
+        return true;
+    } catch (error) {
+        console.error('❌ 繁簡轉換器初始化失敗:', error);
+        return false;
+    }
+}
+
+// 執行轉換（根據選擇的模式）
+function convertText(text, mode) {
+    if (!text) return text;
+    
+    try {
+        if (mode === 't2s' && chineseConverters.t2s) {
+            return chineseConverters.t2s(text);
+        } else if (mode === 'tw2cn' && chineseConverters.tw2cn) {
+            return chineseConverters.tw2cn(text);
+        }
+    } catch (error) {
+        console.warn(`轉換失敗 (${mode}):`, error);
+    }
+    
+    return text;
+}
+
+
+// 搜尋功能（支援繁簡轉換）
+async function enhancedSearch(originalQuery, selectedAPIs) {
+    // 獲取轉換設定
+    const conversionMode = localStorage.getItem('chineseConversionMode') || 'tw2cn';
+    const enableConversion = localStorage.getItem('enableChineseConvert') !== 'false';
+    
+    if (!enableConversion) {
+        console.log('繁簡轉換：已停用');
+        return await performSearch(originalQuery, selectedAPIs);
+    }
+    
+    // 執行轉換
+    const convertedQuery = convertText(originalQuery, conversionMode);
+    
+    if (convertedQuery !== originalQuery) {
+        console.log('========== 繁簡轉換 ==========');
+        console.log(`原始搜尋詞：${originalQuery}`);
+        console.log(`轉換模式：${conversionMode === 't2s' ? '純繁轉簡' : '台繁轉陸簡（含用語）'}`);
+        console.log(`轉換結果：${convertedQuery}`);
+        console.log('===============================');
+    } else {
+        console.log(`搜尋詞無需轉換或轉換器未就緒：${originalQuery}`);
+    }
+    
+    return await performSearch(convertedQuery, selectedAPIs);
+}
+
+// 執行實際搜尋（從原 search 函式提取的邏輯）
+async function performSearch(query, apiList) {
+    let allResults = [];
+    const searchPromises = apiList.map(apiId => 
+        searchByAPIAndKeyWord(apiId, query)
+    );
+    
+    const resultsArray = await Promise.all(searchPromises);
+    
+    resultsArray.forEach(results => {
+        if (Array.isArray(results) && results.length > 0) {
+            allResults = allResults.concat(results);
+        }
+    });
+    
+    return allResults;
+}
+
+// ===== 繁簡轉換功能結束 =====
+
 // 页面初始化
 document.addEventListener('DOMContentLoaded', function () {
+    // 延遲初始化繁簡轉換器，確保 OpenCC 完全載入
+    setTimeout(function() {
+        if (window.OpenCC) {
+            initChineseConverters();
+        } else {
+            console.warn('OpenCC 尚未載入，將在稍後重試...');
+            // 再次嘗試
+            setTimeout(function() {
+                if (window.OpenCC) {
+                    initChineseConverters();
+                } else {
+                    console.error('OpenCC 載入失敗，繁簡轉換功能將無法使用');
+                }
+            }, 1000);
+        }
+    }, 500);
+    
     // 初始化API复选框
     initAPICheckboxes();
 
@@ -568,6 +701,40 @@ function setupEventListeners() {
             localStorage.setItem(PLAYER_CONFIG.adFilteringStorage, e.target.checked);
         });
     }
+    
+    // 繁簡轉換開關事件綁定
+    const chineseConvertToggle = document.getElementById('chineseConvertToggle');
+    if (chineseConvertToggle) {
+        // 設置初始狀態
+        chineseConvertToggle.checked = localStorage.getItem('enableChineseConvert') !== 'false';
+        
+        // 更新轉換模式選擇器的顯示狀態
+        const conversionModeSection = document.getElementById('conversionModeSection');
+        if (conversionModeSection) {
+            conversionModeSection.style.display = chineseConvertToggle.checked ? 'block' : 'none';
+        }
+        
+        chineseConvertToggle.addEventListener('change', function (e) {
+            localStorage.setItem('enableChineseConvert', e.target.checked);
+            
+            // 顯示/隱藏轉換模式選擇
+            const conversionModeSection = document.getElementById('conversionModeSection');
+            if (conversionModeSection) {
+                conversionModeSection.style.display = e.target.checked ? 'block' : 'none';
+            }
+        });
+    }
+    
+    // 轉換模式選擇事件綁定
+    const conversionModeSelect = document.getElementById('conversionModeSelect');
+    if (conversionModeSelect) {
+        // 設置初始值
+        conversionModeSelect.value = localStorage.getItem('chineseConversionMode') || 'tw2cn';
+        
+        conversionModeSelect.addEventListener('change', function (e) {
+            localStorage.setItem('chineseConversionMode', e.target.value);
+        });
+    }
 }
 
 // 重置搜索区域
@@ -624,9 +791,9 @@ async function search() {
             return;
         }
     }
-    const query = document.getElementById('searchInput').value.trim();
+    const originalQuery = document.getElementById('searchInput').value.trim();
 
-    if (!query) {
+    if (!originalQuery) {
         showToast('请输入搜索内容', 'info');
         return;
     }
@@ -639,24 +806,11 @@ async function search() {
     showLoading();
 
     try {
-        // 保存搜索历史
-        saveSearchHistory(query);
+        // 保存原始搜索历史
+        saveSearchHistory(originalQuery);
 
-        // 从所有选中的API源搜索
-        let allResults = [];
-        const searchPromises = selectedAPIs.map(apiId => 
-            searchByAPIAndKeyWord(apiId, query)
-        );
-
-        // 等待所有搜索请求完成
-        const resultsArray = await Promise.all(searchPromises);
-
-        // 合并所有结果
-        resultsArray.forEach(results => {
-            if (Array.isArray(results) && results.length > 0) {
-                allResults = allResults.concat(results);
-            }
-        });
+        // 使用增強搜尋功能（包含繁簡轉換）
+        let allResults = await enhancedSearch(originalQuery, selectedAPIs);
 
         // 对搜索结果进行排序：按名称优先，名称相同时按接口源排序
         allResults.sort((a, b) => {
